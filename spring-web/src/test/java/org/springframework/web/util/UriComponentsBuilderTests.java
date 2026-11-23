@@ -241,6 +241,41 @@ public class UriComponentsBuilderTests {
 		assertThat(result.getQueryParams().getFirst("foo")).isEqualTo("bar@baz");
 	}
 
+	@Test  // CVE-2024-22262
+	public void fromUriStringWithBackslashInAuthority() {
+		UriComponents result = UriComponentsBuilder.fromUriString("https://evil.com\\@example.com").build();
+		assertThat(result.getScheme()).isEqualTo("https");
+		assertThat(result.getUserInfo()).isNull();
+		assertThat(result.getHost()).isEqualTo("evil.com");
+		assertThat(result.getPath()).isEqualTo("\\@example.com");
+
+		result = UriComponentsBuilder.fromUriString("https://evil.com\\.example.com/path").build();
+		assertThat(result.getUserInfo()).isNull();
+		assertThat(result.getHost()).isEqualTo("evil.com");
+		assertThat(result.getPath()).isEqualTo("\\.example.com/path");
+	}
+
+	@Test  // CVE-2024-22262
+	public void fromHttpUrlWithBackslashInAuthority() {
+		UriComponents result = UriComponentsBuilder.fromHttpUrl("https://evil.com\\@example.com").build();
+		assertThat(result.getScheme()).isEqualTo("https");
+		assertThat(result.getUserInfo()).isNull();
+		assertThat(result.getHost()).isEqualTo("evil.com");
+		assertThat(result.getPath()).isEqualTo("\\@example.com");
+
+		result = UriComponentsBuilder.fromHttpUrl("https://evil.com\\.example.com/path").build();
+		assertThat(result.getUserInfo()).isNull();
+		assertThat(result.getHost()).isEqualTo("evil.com");
+		assertThat(result.getPath()).isEqualTo("\\.example.com/path");
+	}
+
+	@Test  // CVE-2024-22262
+	public void fromUriStringWithBackslashInScheme() {
+		UriComponents result = UriComponentsBuilder.fromUriString("https\\://evil.com").build();
+		assertThat(result.getScheme()).isNull();
+		assertThat(result.getHost()).isNull();
+	}
+
 	@Test
 	public void fromHttpRequest() {
 		MockHttpServletRequest request = new MockHttpServletRequest();
