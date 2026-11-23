@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.testfixture.servlet.MockHttpServletRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
  * Unit tests for {@link UrlPathHelper}.
@@ -126,22 +127,45 @@ public class UrlPathHelperTests {
 	}
 
 	@Test
-	public void getRequestKeepSemicolonContent() throws UnsupportedEncodingException {
+	public void getRequestKeepSemicolonContent() {
 		helper.setRemoveSemicolonContent(false);
 
-		request.setRequestURI("/foo;a=b;c=d");
-		assertThat(helper.getRequestUri(request)).isEqualTo("/foo;a=b;c=d");
+		testKeepSemicolonContent("/foo;a=b;c=d", "/foo;a=b;c=d");
+		testKeepSemicolonContent("/test;jsessionid=1234", "/test");
+		testKeepSemicolonContent("/test;JSESSIONID=1234", "/test");
+		testKeepSemicolonContent("/test;jsessionid=1234;a=b", "/test;a=b");
+		testKeepSemicolonContent("/test;a=b;jsessionid=1234;c=d", "/test;a=b;c=d");
+		testKeepSemicolonContent("/test;jsessionid=1234/anotherTest", "/test/anotherTest");
+		testKeepSemicolonContent("/test;jsessionid=;a=b", "/test;a=b");
+		testKeepSemicolonContent("/somethingLongerThan12;jsessionid=1234", "/somethingLongerThan12");
+	}
 
-		request.setRequestURI("/foo;jsessionid=c0o7fszeb1");
-		assertThat(helper.getRequestUri(request)).as("jsessionid should always be removed").isEqualTo("/foo");
+	private void testKeepSemicolonContent(String requestUri, String expectedPath) {
+		request.setRequestURI(requestUri);
+		assertThat(helper.getRequestUri(request)).isEqualTo(expectedPath);
+	}
 
-		request.setRequestURI("/foo;a=b;jsessionid=c0o7fszeb1;c=d");
-		assertThat(helper.getRequestUri(request)).as("jsessionid should always be removed").isEqualTo("/foo;a=b;c=d");
+	@Test
+	public void getOriginatingRequestUriWithRawPathInstanceKeepsJsessionid() {
+		request.setRequestURI("/hello.json;jsessionid=foo.bat");
+		assertThat(UrlPathHelper.rawPathInstance.getOriginatingRequestUri(request))
+				.isEqualTo("/hello.json;jsessionid=foo.bat");
 
-		// SPR-10398
+		request.setRequestURI("/foo/bar;jsessionid=1234/evil.bat");
+		assertThat(UrlPathHelper.rawPathInstance.getOriginatingRequestUri(request))
+				.isEqualTo("/foo/bar;jsessionid=1234/evil.bat");
+	}
 
-		request.setRequestURI("/foo;a=b;JSESSIONID=c0o7fszeb1;c=d");
-		assertThat(helper.getRequestUri(request)).as("JSESSIONID should always be removed").isEqualTo("/foo;a=b;c=d");
+	@Test
+	public void sharedInstancesAreReadOnly() {
+		assertThat(UrlPathHelper.defaultInstance.shouldRemoveSemicolonContent()).isTrue();
+		assertThat(UrlPathHelper.defaultInstance.isUrlDecode()).isTrue();
+		assertThat(UrlPathHelper.rawPathInstance.shouldRemoveSemicolonContent()).isFalse();
+		assertThat(UrlPathHelper.rawPathInstance.isUrlDecode()).isFalse();
+
+		assertThatIllegalArgumentException().isThrownBy(() -> UrlPathHelper.defaultInstance.setUrlDecode(false));
+		assertThatIllegalArgumentException().isThrownBy(() ->
+				UrlPathHelper.rawPathInstance.setRemoveSemicolonContent(true));
 	}
 
 	@Test

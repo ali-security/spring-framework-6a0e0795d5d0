@@ -733,6 +733,9 @@ public abstract class WebUtils {
 			int index = pair.indexOf('=');
 			if (index != -1) {
 				String name = pair.substring(0, index);
+				if (name.equalsIgnoreCase("jsessionid")) {
+					continue;
+				}
 				String rawValue = pair.substring(index + 1);
 				for (String value : StringUtils.commaDelimitedListToStringArray(rawValue)) {
 					result.add(name, value);
